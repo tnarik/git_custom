@@ -1,0 +1,38 @@
+#!/bin/sh
+
+function gitallinfo () {
+	echo "info, do it right"
+}
+
+function gitrepo () {	
+	case $* in	
+		"test") echo "test here"
+		;;
+		*) git $*
+		;;
+	esac
+}
+
+## Execution starts here
+# I don't want no commands
+if [ $# -eq 0 ]; then
+	gitallinfo
+	exit 127
+fi
+
+# Base path and GIT identifier
+BASE=`pwd`
+GITREPO_TOKEN_DIR=.git
+
+# git-all will "cd" to each GIT repository and execute "gitrepo" there
+cd $BASE
+for gittoken_path in `find . -name $GITREPO_TOKEN_DIR -a -type d`; do
+	GITREPO_PATH=`echo $gittoken_path | sed -e 's/\/'$GITREPO_TOKEN_DIR'$//g'`
+	cd $BASE
+	cd $GITREPO_PATH
+
+	echo ""
+	echo "GIT repo at $GITREPO_PATH"
+
+	gitrepo $*
+done
