@@ -28,8 +28,8 @@ GITREPO_TOKEN_DIR=.git
 cd $BASE
 for gittoken_path in `find . -name $GITREPO_TOKEN_DIR -a -type d`; do
 	GITREPO_PATH=`echo $gittoken_path | sed -e 's/\/'$GITREPO_TOKEN_DIR'$//g'`
-	cd $BASE
-	cd $GITREPO_PATH
+	cd "$BASE"
+	cd "$GITREPO_PATH"
 
 	echo ""
 	echo "GIT repo at $GITREPO_PATH"
