@@ -1,0 +1,20 @@
+#!/bin/sh
+
+function gitcafelistinfo () {
+	echo "List all repos in gitcafe via the API"
+	echo "git cafelist"
+}
+
+function gitrepo () {
+	curl -X "GET" -H "Authorization: token $(git config --global --get repo.api.token)" \
+	$(git config --global --get repo.api.create)  2>/dev/null | jq '.[].name' |sort
+}
+
+## Execution starts here
+# I don't want no commands
+if [ $# -ne 0 ]; then
+	gitcafelistinfo
+	exit 127
+fi
+
+gitrepo "$@"

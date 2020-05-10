@@ -1,0 +1,26 @@
+#!/bin/sh
+
+function gitcreateinfo () {
+	echo "Creates a repository via the API"
+	echo "git create <repo name> <repo description>"
+}
+
+function gitrepo () {
+	curl -X "POST" -H "Authorization: token $(git config --global --get repo.api.token)" \
+	-H "content-type: application/json" \
+	$(git config --global --get repo.api.create)  \
+	-d "{
+	  \"name\": \"${1}\",
+	  \"title\": \"${2}\",
+	  \"private\": true
+	}" 2>/dev/null | jq
+}
+
+## Execution starts here
+# I don't want no commands
+if [ $# -ne 2 ]; then
+	gitcreateinfo
+	exit 127
+fi
+
+gitrepo "$@"
