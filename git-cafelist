@@ -6,8 +6,8 @@ function gitcafelistinfo () {
 }
 
 function gitrepo () {
-	curl -X "GET" -H "Authorization: token $(git config --global --get repo.api.token)" \
-	$(git config --global --get repo.api.create)  2>/dev/null | jq '.[].name' |sort
+	curl -X "GET" -H "Authorization: token $(git config --global --get repo.gitcafe.api.token)" \
+	$(git config --global --get repo.gitcafe.api.repos)  2>/dev/null | jq -r '.[].name' |sort
 }
 
 ## Execution starts here

@@ -6,9 +6,9 @@ function gitcreateinfo () {
 }
 
 function gitrepo () {
-	curl -X "POST" -H "Authorization: token $(git config --global --get repo.api.token)" \
+	curl -X "POST" -H "Authorization: token $(git config --global --get repo.gitcafe.api.token)" \
 	-H "content-type: application/json" \
-	$(git config --global --get repo.api.create)  \
+	$(git config --global --get repo.gitcafe.api.repos)  \
 	-d "{
 	  \"name\": \"${1}\",
 	  \"title\": \"${2}\",
