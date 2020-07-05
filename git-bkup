@@ -125,7 +125,7 @@ if __name__ == "__main__":
     backup_github(args.verbose)
 
     for i, project in enumerate(projects):
-        if not args.quiet: print("[{}/{}] {}:{}".format(i, len(projects), project['server'], project['full_name']))
+        if not args.quiet: print("[{}/{}] {}:{}".format(i+1, len(projects), project['server'], project['full_name']))
         server_bkup_root = os.path.join(args.basedir, project['server'])
         os.makedirs(server_bkup_root, exist_ok=True)
 
