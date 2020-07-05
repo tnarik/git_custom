@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 function gitcreateinfo () {
 	echo "Creates a repository via the API"

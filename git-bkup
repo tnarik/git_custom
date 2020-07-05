@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+import argparse
+from urllib.request import urlopen
+from urllib.request import Request
+from urllib.error import HTTPError
+import json
+import re
+from datetime import datetime
+
+import os
+import subprocess
+
+
+def api_to_dict_project(data, server):
+    fields = ['name', 'full_name', 'ssh_url', 'fork', 'created_at', 'updated_at', 'language', 'license', 'private']
+    extracted_data = {key: value for key, value in data.items() if key in fields}
+    extracted_data['server'] = server
+    return extracted_data
+
+
+def backup_gogs(server, verbose=0):
+    api_token = subprocess.check_output(['git', 'config', '--global', '--get', 'repo.{}.api.token'.format(server)],
+                                        encoding='utf-8').strip()
+    api_repos = subprocess.check_output(['git', 'config', '--global', '--get', 'repo.{}.api.repos'.format(server)],
+                                        encoding='utf-8').strip()
+    headers = {
+        "Authorization": "token {}".format(api_token)
+    }
+    next_url = "{}".format(api_repos)
+    request = Request(next_url, headers=headers, method="GET")
+    try:
+        response = urlopen(request)
+    except HTTPError as http_error:
+        if http_error.code == 403:
+            retry_at = float(http_error.headers.get('X-Ratelimit-Reset'))
+            print("Rate exceeded, retry at: {}".format(datetime.fromtimestamp(retry_at)))
+            exit(43)
+        else:
+            print("Unhandled error: {}".format(http_error.code))
+            exit(127)
+    else:
+        if response.status == 200:
+            repos = json.load(response)
+            projects.extend([api_to_dict_project(repo, server) for repo in repos])
+        else:
+            if verbose >= 1: print(response.getheaders())
+
+
+def backup_github(verbose=0):
+    api_token = subprocess.check_output(['git', 'config', '--global', '--get', 'repo.github.api.token'],
+                                        encoding='utf-8').strip()
+    api_repos = subprocess.check_output(['git', 'config', '--global', '--get', 'repo.github.api.repos'],
+                                        encoding='utf-8').strip()
+
+    next_re = re.compile('<(.*)>.*rel="next".*')
+    headers = {
+        "Authorization": "token {}".format(api_token),
+        "Accept": "application/vnd.github.v3+json"
+    }
+    next_url = "{}?type=owner".format(api_repos)
+    while next_url is not None:
+        request = Request(next_url, headers=headers, method="GET")
+        try:
+            response = urlopen(request)
+        except HTTPError as http_error:
+            if http_error.code == 403:
+                retry_at = float(http_error.headers.get('X-Ratelimit-Reset'))
+                print("Rate exceeded, retry at: {}".format(datetime.fromtimestamp(retry_at)))
+                exit(43)
+            else:
+                print("Unhandled error: {}".format(http_error.code))
+                exit(127)
+        else:
+            next_url = None
+            if response.status == 200:
+                link_header = response.getheader('link')
+                if link_header is not None:
+                    next_page_regex = re.compile('<(.*)>.*rel="next".*')
+                    next_url = ([match.group(1)
+                                 for match
+                                 in [next_re.match(rellink.strip())
+                                     for rellink
+                                     in link_header.split(',')] if match is not None]
+                                or [None])[0]
+
+                repos = json.load(response)
+                projects.extend([api_to_dict_project(repo, 'github') for repo in repos])
+            else:
+                if verbose >= 1: print(response.getheaders())
+
+    if verbose >= 2: print(json.dumps(projects))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="GIT custom server backup")
+    parser.add_argument('basedir',
+                        help='(optional) container folder for all backups. If not provided, uses current working directory.',
+                        nargs='?',
+                        default=os.getcwd())
+    parser.add_argument('-w', '--working',
+                        help='creates the backup as a working copy (indicated by the absence of the .git suffix)',
+                        action='store_true')
+    parser.add_argument('-V', '--version',
+                        help='display version',
+                        action='version',
+                        version="0.0.3")
+    parser.add_argument('-v', '--verbose',
+                        help='produce verbose output',
+                        action='count',
+                        default=0)
+    parser.add_argument('-q', '--quiet',
+                        help='quiet mode',
+                        action='store_true')
+    args = parser.parse_args()
+
+    if args.quiet: args.verbose = 0
+    if args.verbose >= 2: print("Dumping backup to '{}'".format(args.basedir))
+
+    projects = []
+    # Severs and their types are hard-coded here, but they could come for a more detailed .git custom configuration
+    # From Gitcafe
+    backup_gogs('gitcafe', args.verbose)
+    # From Github
+    backup_github(args.verbose)
+
+    for i, project in enumerate(projects):
+        if not args.quiet: print("[{}/{}] {}:{}".format(i, len(projects), project['server'], project['full_name']))
+        server_bkup_root = os.path.join(args.basedir, project['server'])
+        os.makedirs(server_bkup_root, exist_ok=True)
+
+        # Base command
+        command = ['git', 'clone']
+        # Verbosity
+        if args.verbose <= 1: command.append('-q')
+        if args.verbose >= 1:
+            command.append('--progress')
+        # Working copy and paths
+        if not args.working: command.append('--mirror')
+        command.append(project['ssh_url'])
+        if args.working:
+            command.append(project['full_name'])
+        else:
+            command.append("{}.git".format(project['full_name']))
+
+        subprocess.run(command, cwd=server_bkup_root)

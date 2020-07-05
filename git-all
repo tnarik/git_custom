@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 function gitallinfo () {
 	echo "info, do it right"

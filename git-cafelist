@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 function gitcafelistinfo () {
 	echo "List all repos in gitcafe via the API"
